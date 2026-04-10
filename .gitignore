@@ -1,0 +1,7 @@
+/.venv/
+/config/credentials.yaml
+/xlsx_templates/*
+*__pycache__/
+output/
+*.xlsx
+*.json
