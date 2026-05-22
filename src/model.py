@@ -1,7 +1,12 @@
 
 class MenuModel:
     def __init__(self):
-        self.options = ["Voir mes données utilisateur", "Voir les tickets", "Exporter vers Excel", "Quitter"]
+        self.options = [
+            "Voir mes données utilisateur",
+            "Voir mes tickets",
+            "Exporter vers Excel",
+            "Quitter"
+        ]
         self.selected_index = 0
         self.issues = []
         self.user_data = {}

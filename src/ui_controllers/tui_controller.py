@@ -3,6 +3,7 @@ from textual.app import App
 
 from src.jira_track import (
     export_to_excel,
+    export_to_excel_template,
     format_issues_to_headers,
     get_jira_issues,
     load_credentials,
@@ -14,6 +15,7 @@ from src.ui_views.main_view import MainMenuScreen
 from src.ui_views.cookie_view import CookieInputScreen
 from src.ui_views.issues_view import IssuesScreen
 from src.ui_views.userdata_view import UserDataScreen
+from src.ui_views.excel_export_view import ExcelExportScreen
 
 
 class JiraTrackApp(App[None]):
@@ -37,6 +39,11 @@ class JiraTrackApp(App[None]):
         border: solid cyan;
     }
 
+    #excel-container {
+        align: center middle;
+        height: 1fr;
+    }
+
     #cookie-container {
         align: center middle;
         height: 1fr;
@@ -55,6 +62,10 @@ class JiraTrackApp(App[None]):
     #cookie-form Input {
         margin-bottom: 1;
     }
+
+    Button {
+        width: 100%;
+    }
     """
 
     def __init__(self) -> None:
@@ -72,7 +83,7 @@ class JiraTrackApp(App[None]):
         match choice:
             case "Voir mes données utilisateur":
                 self.push_screen(UserDataScreen())
-            case "Voir les tickets":
+            case "Voir mes tickets":
                 if not self.model.user_data.get('jira_cookie'):
                     self.push_screen(CookieInputScreen())
                 else:
@@ -84,7 +95,7 @@ class JiraTrackApp(App[None]):
                         severity="warning",
                     )
                 else:
-                    self._export_issues()
+                    self.push_screen(ExcelExportScreen())
             case "Quitter":
                 self.exit()
 
@@ -106,8 +117,11 @@ class JiraTrackApp(App[None]):
         self.call_from_thread(self.push_screen, IssuesScreen(formatted))
 
     @work(thread=True)
-    def _export_issues(self) -> None:
-        export_to_excel(self.model.issues)
+    def _export_issues(self, template=False) -> None:
+        if template:
+            export_to_excel_template(self.model.issues)
+        else:
+            export_to_excel(self.model.issues)
         self.call_from_thread(self.notify, "Export Excel terminé !", severity="information")
 
     # --- Cookie handling ---

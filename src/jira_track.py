@@ -6,6 +6,7 @@ import time
 import xlsxwriter
 import yaml
 from datetime import datetime
+from pathlib import Path
 from openpyxl import load_workbook
 from requests.auth import HTTPBasicAuth
 
@@ -25,8 +26,8 @@ TICKET_HEADERS = ["Sprint", "Date", "DayLog", "Ticket", "Hours spent", "Title", 
 def load_credentials() -> dict:
     if os.path.exists("config/credentials.yaml"):
         with open("config/credentials.yaml", "r", encoding="utf-8") as f:
-            crendential_data = yaml.load(f, Loader=yaml.CSafeLoader)
-        return crendential_data
+            credential_data = yaml.load(f, Loader=yaml.CSafeLoader)
+        return credential_data
     return {}
 
 
@@ -101,6 +102,7 @@ def get_jira_issues(cookie, fields=DEFAULT_FIELDS):
     # with open("debug_jira_response.json", "w", encoding="utf-8") as f:
     #     json.dump(data, f, indent=2, ensure_ascii=False)
     issues = data.get("issues", [])
+    issues.sort(key=lambda x: x["fields"]["updated"], reverse=True)
     print(f"✅ {len(issues)} tickets récupérés depuis Jira.")
     return issues
 
@@ -132,6 +134,15 @@ def get_sprint_name(sprint, project="CCS2"):
     return ""
 
 
+# --- Component name ---
+def get_component_name(ticket_title):
+    if re.search(r"Diag|Conf|Concal|DRF|API", ticket_title, re.IGNORECASE):
+        return "Diag/Conf"
+    elif re.search(r"VHAL", ticket_title, re.IGNORECASE):
+        return "VHAL"
+    return "X"
+
+
 # --- Formatage des tickets ---
 def format_issues_to_headers(issues, headers = TICKET_HEADERS):
     formatted_issues = []
@@ -148,7 +159,7 @@ def format_issues_to_headers(issues, headers = TICKET_HEADERS):
         formatted_issue["Hours spent"] = 4.0
         formatted_issue["Title"] = fields["summary"]
         formatted_issue["Project"] = "SDV" if "SDV" in formatted_issue["Ticket"] else "CCS2"
-        formatted_issue["Component"] = "Diag/Conf"
+        formatted_issue["Component"] = get_component_name(fields["summary"])
         formatted_issue["Type"] = "Bug" if fields["issuetype"]["name"] == "Bug" else "Implem"
         formatted_issue["Planned/Unplanned"] = "Unplanned" if fields["issuetype"]["name"] == "Bug" else "Planned"
         formatted_issue["Cause"] = ""
@@ -173,3 +184,39 @@ def export_to_excel(issues_dict: dict):
 
     workbook.close()
     print(f"📁 Fichier généré : {OUTPUT_EXCEL}")
+
+
+# --- Trouver première ligne vide ---
+def find_next_empty_row(sheet, starting_row=2, ticket_column=4):
+    """
+    Cherche la première ligne vide dans la colonne Ticket
+    (colonne D = index 4 en Excel humain)
+    """
+    row = starting_row  # On suppose que la ligne 1 est le header
+    while sheet.cell(row=row, column=ticket_column).value:
+        row += 1
+    return row
+
+
+# --- Export sur Template Excel ---
+def export_to_excel_template(issues_dict: dict):
+
+    output_excel = f"{Path(EXCEL_TEMPLATE).stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    workbook = load_workbook(EXCEL_TEMPLATE)
+    # format = workbook.add_format({'text_wrap': True, 'valign': 'top'})
+
+    headers = TICKET_HEADERS
+    # for col, header in enumerate(headers):
+    #     worksheet.write(0, col, header)
+
+    current_row = 2
+
+    for row, issue in enumerate(issues_dict, start=1):
+        empty_row = find_next_empty_row(workbook["Tasks"], starting_row=current_row)
+        for col, header in enumerate(headers):
+            workbook["Tasks"].cell(row=empty_row, column=col+1, value=issue[header])
+        current_row = empty_row
+
+    workbook.save(output_excel)
+    print(f"✅ Tickets écrits dans le template Excel {output_excel}")
