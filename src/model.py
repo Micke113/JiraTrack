@@ -4,7 +4,7 @@ class MenuModel:
         self.options = ["Voir mes données utilisateur", "Voir les tickets", "Exporter vers Excel", "Quitter"]
         self.selected_index = 0
         self.issues = []
-        self.cookie = None
+        self.user_data = {}
 
     def move_up(self):
         self.selected_index = (self.selected_index - 1) % len(self.options)

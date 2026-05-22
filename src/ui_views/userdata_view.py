@@ -8,8 +8,6 @@ from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Lis
 class UserDataScreen(Screen):
     """Screen prompting user to input data."""
 
-    """Screen prompting the user to paste their Jira session cookie."""
-
     BINDINGS = [
         Binding("escape", "go_back", "Annuler"),
     ]
@@ -18,14 +16,20 @@ class UserDataScreen(Screen):
         yield Header()
         with Container(id="data-container"):
             with Vertical(id="data-form"):
-                yield Label("Veuillez saisir vos données :")
+                yield Label("Lien Jira:")
                 yield Input(
-                    placeholder="Lien Jira",
+                    value=self.app.model.user_data.get("jira_link", ""),
                     id="jira-link",
                 )
+                yield Label("Mail utilisateur:")
                 yield Input(
-                    placeholder="Mail utilisateur",
+                    value=self.app.model.user_data.get("jira_user", ""),
                     id="jira-user",
+                )
+                yield Label("Cookie Jira:")
+                yield Input(
+                    value=self.app.model.user_data.get("jira_cookie", ""),
+                    id="jira-cookie",
                 )
                 yield Button("Valider", id="submit-data", variant="primary")
         yield Footer()
@@ -41,9 +45,11 @@ class UserDataScreen(Screen):
         data = {
             "jira_link": self.query_one("#jira-link", Input).value.strip(),
             "jira_user": self.query_one("#jira-user", Input).value.strip(),
+            "jira_cookie": self.query_one("#jira-cookie", Input).value.strip()
         }
-        if data["jira_link"] and data["jira_user"]:
+        if data["jira_link"] or data["jira_user"] or data["jira_cookie"]:
             self.app.handle_data_saved(data)
+        self.action_go_back()
 
     def action_go_back(self) -> None:
         self.app.pop_screen()

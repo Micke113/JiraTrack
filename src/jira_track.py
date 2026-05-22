@@ -2,6 +2,7 @@ import json
 import os
 import re
 import requests
+import time
 import xlsxwriter
 import yaml
 from datetime import datetime
@@ -11,7 +12,7 @@ from requests.auth import HTTPBasicAuth
 
 # --- CONFIGURATION ---
 DEFAULT_FIELDS = "customfield_10005, customfield_18002, updated, status, summary, issuetype, components, priority, created"
-WEEKS_RANGE = 12
+WEEKS_RANGE = time.strftime("%W", time.gmtime())  # Nombre de semaines depuis le début de l'année
 
 OUTPUT_EXCEL = f"output/jira_tickets_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
 EXCEL_TEMPLATE = "xlsx_templates/TimeTracking_PIX_LMI_template.xlsx"
@@ -27,6 +28,22 @@ def load_credentials() -> dict:
             crendential_data = yaml.load(f, Loader=yaml.CSafeLoader)
         return crendential_data
     return {}
+
+
+def save_credentials(data: dict) -> None:
+    credentials = load_credentials()
+    if not credentials:
+        os.makedirs("config", exist_ok=True)
+
+    cookie = data.get('jira_cookie', "").strip()
+    cookie = cookie.encode('ascii', 'ignore').decode('ascii')
+    cookie = re.sub(r'[^\x20-\x7E]', '', cookie).strip()
+    credentials['jira_cookie'] = cookie
+    credentials['jira_link'] = data.get('jira_link', "")
+    credentials['jira_user'] = data.get('jira_user', "")
+
+    with open("config/credentials.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(credentials, f, Dumper=yaml.CSafeDumper, default_flow_style=False, allow_unicode=True)
 
 
 # --- Gestion du cookie ---

@@ -5,8 +5,9 @@ from src.jira_track import (
     export_to_excel,
     format_issues_to_headers,
     get_jira_issues,
-    load_cookie,
+    load_credentials,
     save_cookie,
+    save_credentials
 )
 from src.model import MenuModel
 from src.ui_views.main_view import MainMenuScreen
@@ -59,7 +60,7 @@ class JiraTrackApp(App[None]):
     def __init__(self) -> None:
         super().__init__()
         self.model = MenuModel()
-        self.model.cookie = load_cookie()
+        self.model.user_data = load_credentials()
 
     def on_mount(self) -> None:
         self.push_screen(MainMenuScreen(self.model))
@@ -72,7 +73,7 @@ class JiraTrackApp(App[None]):
             case "Voir mes données utilisateur":
                 self.push_screen(UserDataScreen())
             case "Voir les tickets":
-                if not self.model.cookie:
+                if not self.model.user_data.get('jira_cookie'):
                     self.push_screen(CookieInputScreen())
                 else:
                     self._fetch_issues()
@@ -91,7 +92,7 @@ class JiraTrackApp(App[None]):
 
     @work(thread=True, exclusive=True)
     def _fetch_issues(self) -> None:
-        issues = get_jira_issues(self.model.cookie)
+        issues = get_jira_issues(self.model.user_data.get('jira_cookie'))
         if not issues:
             self.call_from_thread(
                 self.notify,
@@ -113,9 +114,15 @@ class JiraTrackApp(App[None]):
 
     def handle_cookie_saved(self, cookie: str) -> None:
         save_cookie(cookie)
-        self.model.cookie = cookie
+        self.model.user_data['jira_cookie'] = cookie
         self.pop_screen()
         self._fetch_issues()
+
+    # --- Data handling ---
+
+    def handle_data_saved(self, data: dict) -> None:
+        self.model.user_data = data
+        save_credentials(data)
 
 
 def run():
